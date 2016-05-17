@@ -26,7 +26,7 @@ void setup() {
 
 	#ifdef SER_DBG																			// some debug
 		dbgStart();																			// serial setup
-		dbg << F("HM_LC_SW4_SW\n");	
+		dbg << F("HM_LC_SW2_SW\n");	
 		dbg << F(LIB_VERSION_STRING);
 		_delay_ms (50);																		// ...and some information
 	#endif
