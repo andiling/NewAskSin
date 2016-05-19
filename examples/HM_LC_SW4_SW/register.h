@@ -13,12 +13,14 @@ extern void switchRly(uint8_t channel, uint8_t status);                 // decla
 
 //- ----------------------------------------------------------------------------------------------------------------------
 //- eeprom defaults table ------------------------------------------------------------------------------------------------
+/* not used
 uint16_t EEMEM eMagicByte;
 uint8_t  EEMEM eHMID[3]  = {0x0a,0x03,0x01};
 uint8_t  EEMEM eHMSR[10] = {'H','M','R','y','0','0','0','0','0','1'};
 uint8_t  EEMEM eHMKEY[16] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,};
+*/
 
-// if HMID and Serial are not set, then eeprom ones will be used
+// id and serial may be overwritten from bootloader
 uint8_t HMID[3] = {0x0a,0x03,0x01};
 uint8_t HMSR[10] = {'H','M','R','y','0','0','0','0','0','1'};
 uint8_t HMKEY[16] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,};

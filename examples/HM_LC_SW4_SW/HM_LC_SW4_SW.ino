@@ -4,6 +4,27 @@
 #include <AS.h>																				// ask sin framework
 #include "register.h"																		// configuration sheet
 
+#define OTA_DEVID_START  0x7ff0
+#define OTA_SERIAL_START 0x7ff2
+#define OTA_HMID_START   0x7ffc
+
+void getDataFromAddressSection(uint8_t *buffer, uint16_t sectionAddress, uint8_t dataLen) {
+  for (unsigned char i = 0; i < dataLen; i++) {
+    buffer[i] = pgm_read_byte(sectionAddress + i);
+  }
+}
+
+void readBootLoaderData () {
+  uint8_t dev[2], ser[4];
+  getDataFromAddressSection(dev,OTA_DEVID_START,2); // read device id
+  getDataFromAddressSection(ser,OTA_SERIAL_START,4); // read start of serial
+  // if device id equals and serial starts with same 4 byte
+  // asume we have a valid ota bootloader and copy HMID and HMSerial
+  if( dev[0]==devIdnt[1] && dev[1]==devIdnt[2] && memcmp(ser,HMSR,4)==0 ) {
+    getDataFromAddressSection(HMID,OTA_HMID_START,3);
+    getDataFromAddressSection(HMSR,OTA_SERIAL_START,10);
+  }
+}
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
 void setup() {
@@ -31,6 +52,7 @@ void setup() {
 		_delay_ms (50);																		// ...and some information
 	#endif
 
+	readBootLoaderData();
 	
 	// - AskSin related ---------------------------------------
 	hm.init();																				// init the asksin framework
@@ -39,7 +61,11 @@ void setup() {
 
 	// - user related -----------------------------------------
 	#ifdef SER_DBG
-		dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");	// some debug
+	  dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n");	// some debug
+	  for( int i=0; i<10; ++i ) {
+		  dbg << (char)HMSR[i];
+	  }
+	  dbg << F("\n\n");
 	#endif
 }
 
