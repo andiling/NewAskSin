@@ -49,7 +49,7 @@ void setup() {
 
 	#ifdef SER_DBG																			// some debug
 		dbgStart();																			// serial setup
-		dbg << F("HM_LC_SW4_SW\n");	
+		dbg << F("HM_Relay_Board\n");	
 		dbg << F(LIB_VERSION_STRING);
 		_delay_ms (50);																		// ...and some information
 	#endif
@@ -67,7 +67,8 @@ void setup() {
 	  for( int i=0; i<10; ++i ) {
 		  dbg << (char)HMSR[i];
 	  }
-	  dbg << F("\n\n");
+	  dbg << F("\n");
+	  dbg << F("Simulate HM_LC_SW") << devDef.cnlNbr << F("_SW\n\n");
 	#endif
 }
 
