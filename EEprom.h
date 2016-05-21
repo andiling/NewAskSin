@@ -157,8 +157,8 @@ class EE {
      *
      */
 	struct s_devDef {	// device definition table
-		const uint8_t   cnlNbr;    ///< Number of channels
-		const uint8_t   lstNbr;    ///< Number of lists
+		uint8_t   cnlNbr;    ///< Number of channels
+		uint8_t   lstNbr;    ///< Number of lists
 		const uint8_t   *devIdnt;  ///< Pointer to device identifier
 		const uint8_t   *cnlAddr;  ///< Pointer to the channel slice address definition
 	};
