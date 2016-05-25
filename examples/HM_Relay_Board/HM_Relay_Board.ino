@@ -63,7 +63,7 @@ void setup() {
 
 	// - user related -----------------------------------------
 	#ifdef SER_DBG
-	  dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n");	// some debug
+	  dbg << F("DEVID: ") << _HEX(&devIdnt[1],2) << F(", HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n");	// some debug
 	  for( int i=0; i<10; ++i ) {
 		  dbg << (char)HMSR[i];
 	  }
