@@ -103,9 +103,9 @@ void AS::sendDEVICE_INFO(void) {
 	memcpy(sn.mBdy.reID,HMID,3);
 	memcpy(sn.mBdy.toID,MAID,3);
 
-	memcpy_P(sn.buf+10,devDef.devIdnt,3);
+	memcpy(sn.buf+10,devDef.devIdnt,3);
 	memcpy(sn.buf+13,HMSR,10);
-	memcpy_P(sn.buf+23,devDef.devIdnt+3,4);
+	memcpy(sn.buf+23,devDef.devIdnt+3,4);
 	sn.active = 1;																			// fire the message
 
 	pairActive = 1;																			// set pairing flag
@@ -856,10 +856,10 @@ void AS::recvMessage(void) {
 			
 		}
 		//dbg << "cnl: " << cnl << " pIdx: " << pIdx << " mTyp: " << _HEXB(rv.mBdy.mTyp) << " by10: " << _HEXB(rv.mBdy.by10)  << " by11: " << _HEXB(rv.mBdy.by11) << " data: " << _HEX((rv.buf+10),(rv.mBdy.mLen-9)) << '\n'; _delay_ms(100);
-		if (cnl == 0) return;
+		//if (cnl == 0) return;
 		
 		// check if a module is registered and send the information, otherwise report an empty status
-		if (modTbl[cnl-1].cnl) {
+		if (cnl > 0 && modTbl[cnl-1].cnl) {
 
 			//dbg << "pIdx:" << pIdx << ", cnl:" << cnl << '\n';
 			ee.getList(cnl, modTbl[cnl-1].lst, pIdx, modTbl[cnl-1].lstPeer);				// get list3 or list4 loaded into the user module
