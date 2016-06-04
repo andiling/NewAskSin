@@ -8,6 +8,8 @@
 #define OTA_SERIAL_START 0x7ff2
 #define OTA_HMID_START   0x7ffc
 
+bool lowActive=false;
+
 void getDataFromAddressSection(uint8_t *buffer, uint16_t sectionAddress, uint8_t dataLen) {
   for (unsigned char i = 0; i < dataLen; i++) {
     buffer[i] = pgm_read_byte(sectionAddress + i);
@@ -25,6 +27,17 @@ void readBootLoaderData () {
 	devIdnt[2] = dev[1];
     getDataFromAddressSection(HMID,OTA_HMID_START,3);
     getDataFromAddressSection(HMSR,OTA_SERIAL_START,10);
+  }
+}
+
+void checkLowActive () {
+  pinMode(A0,OUTPUT);
+  pinMode(A1,INPUT);
+  digitalWrite(A1,HIGH);
+  digitalWrite(A0,LOW);
+  if( digitalRead(A1)==LOW ) {
+	dbg << "LowActive" << F("\n");
+	lowActive=true;
   }
 }
 
@@ -55,6 +68,7 @@ void setup() {
 	#endif
 
 	readBootLoaderData();
+	checkLowActive();
 	
 	// - AskSin related ---------------------------------------
 	hm.init();																				// init the asksin framework
@@ -97,7 +111,12 @@ void initRly(uint8_t channel) {
 	#endif
 	uint8_t pin = getSwitchPin(channel);
 	pinOutput(DDRD,pin);  // init the relay pins
-	setPinLow(PORTD,pin); // set relay pin to ground
+	if( lowActive==true ) {
+      setPinHigh(PORTD,pin); // set relay pin to ground
+	}
+	else {
+	  setPinLow(PORTD,pin); // set relay pin to ground
+	}
 }
 void switchRly(uint8_t channel, uint8_t status) {
 // switching the relay, could be done also by digitalWrite(3,HIGH or LOW)
@@ -105,15 +124,19 @@ void switchRly(uint8_t channel, uint8_t status) {
 		dbg << F("switchRly: ") << channel << ", " << status << "\n";
 	#endif
 
+	// if lowActive - invert status
+	if( lowActive==true ) {
+	  if( status == 0 ) status = 200;
+	  else status = 0;
+	}
+    // check status and set relay pin according
 	uint8_t pin = getSwitchPin(channel);
-	// pinOutput(DDRD,pin);
-        // check status and set relay pin accordingly																// init the relay pins
-	if (status) {
-           setPinHigh(PORTD,pin);
-        }				
+	if (status != 0) {
+      setPinHigh(PORTD,pin);
+    }
 	else {
-          setPinLow(PORTD,pin);
-        }
+      setPinLow(PORTD,pin);
+    }
 }
 
 
