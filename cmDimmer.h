@@ -253,6 +253,7 @@ class cmDimmer {
 	waitTimer delayTmr;																		// delay timer for on,off and delay time
 	uint16_t  rampTme, duraTme;																// time store for trigger 11
 
+	uint8_t   dynOnLevel;
 	uint8_t   setStat;																		// status to set on the PWM channel
 	uint32_t  adjDlyPWM;																	// timer to follow in adjPWM function
 	uint16_t  characteristicStat;															// depends on list1 characteristic setting

@@ -9,6 +9,8 @@
 //#define DI_DBG																			// debug message flag
 #include "cmDimmer.h"
 
+#define pHexB(x)  char((x>>4)>9?(x>>4)+55:(x>>4)+48)<< char((x&0xF)>9?(x&0xF)+55:(x&0xF)+48)
+#define pHex(x,y) char(0);for(uint8_t i=0;i<y;i++)dbg<<pHexB(*(x+i))<<char(i+1<y?32:0);dbg<<char(0)
 
 //-------------------------------------------------------------------------------------------------------------------------
 //- user defined functions -
@@ -27,8 +29,13 @@ void cmDimmer::config(void Init(uint8_t), void xSwitch(uint8_t, uint8_t,uint8_t)
 	modStat = 0x00;
 	
 	// send the initial status info
-	sendStat = 2;
 	msgTmr.set(msgDelay);
+	dynOnLevel = 200;
+//	if( lstCnl.powerUpAction == 1 ) {
+//	  uint16_t n=0;
+//	  trigger11(dynOnLevel,(uint8_t*)&n,(uint8_t*)&n);
+//	}
+	sendStat = 2;
 }
 
 void cmDimmer::trigger11(uint8_t setValue, uint8_t *rampTime, uint8_t *duraTime) {
@@ -42,8 +49,10 @@ void cmDimmer::trigger11(uint8_t setValue, uint8_t *rampTime, uint8_t *duraTime)
 	if (rampTime) rampTme = (uint16_t)rampTime[0]<<8 | (uint16_t)rampTime[1];				// if ramp time is given, bring it in the right format
 	else rampTme = 0;																		// otherwise empty variable
 
-	if (duraTime) duraTme = (uint16_t)duraTime[0]<<8 | (uint16_t)duraTime[1];				// duration time if given
-	else duraTme = 0;																		// or clear value
+	if (duraTime && duraTime[0] != 0xFF && duraTime[1] != 0xFF) 
+	  duraTme = (uint16_t)duraTime[0]<<8 | (uint16_t)duraTime[1];				// duration time if given
+	else 
+	  duraTme = 0;																		// or clear value
 
 	// set value in modStat and ramp time if given
 	if (setValue > 200) setValue = 200;
@@ -369,13 +378,14 @@ void cmDimmer::dimPoll(void) {
 		
 
 	} else if (nxtStat == 2) {		// rampOn
+		uint8_t level = l3->onLevel > 200 ? dynOnLevel : l3->onLevel;
 		#ifdef DI_DBG
-		dbg << F("rampOn\n");
+		dbg << F("rampOn ") << l3->onLevel << F(" -> ") << level << F("\n");
 		#endif
 		
 		// check modStat against onLevel, if not compare, set the right values
-		if (modStat != l3->onLevel)	{														// modStat not set, so first time
-			modStat	= l3->onLevel;															// set module status accordingly settings
+		if (modStat != level)	{														// modStat not set, so first time
+			modStat	= level;															// set module status accordingly settings
 			adjDlyPWM = byteTimeCvt(l3->rampOnTime);										// get the ramp on time
 			delayTmr.set(adjDlyPWM);														// set the ramp time to poll delay, otherwise we will every time end here
 			adjDlyPWM /= 200;																// break down the ramp time to smaller slices for adjusting PWM
@@ -417,8 +427,11 @@ void cmDimmer::dimPoll(void) {
 			delayTmr.set(byteTimeCvt(l3->offDly));											// activate the timer and set next status
 			if (l3->offDlyBlink) activeOffDlyBlink = 1;
 		}
-
-
+		// store last on level for next on
+		if( modStat >0 && dynOnLevel != modStat ) {
+			dynOnLevel = modStat;
+			dbg << F("Store: ") << dynOnLevel << F("\n");
+		}
 	} else if (nxtStat == 5) {		// rampOff
 		#ifdef DI_DBG
 		dbg << F("rampOff\n");
