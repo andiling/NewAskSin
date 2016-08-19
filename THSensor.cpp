@@ -46,7 +46,7 @@ void THSensor::sensPoll(void) {
 			else sensTmr.set(mSendDelay - measureDelay);
 
 			msgCnt++;																			// increase the message counter
-			hm->sendSensor_event(regCnl,1,sensVal);												// prepare the message and send
+			hm.sendSensor_event(regCnl,1,sensVal);												// prepare the message and send
 
 		}
 	} else if (mMode == 1) {
@@ -57,14 +57,19 @@ void THSensor::sensPoll(void) {
 		sensVal[0] = msgCnt++;																	// copy the current message counter
 		sensVal[1] = *ptrVal;																	// copy the current sensor value
 
-		hm->sendSensor_event(regCnl,1,sensVal);													// prepare the message and send
+		hm.sendSensor_event(regCnl,1,sensVal);													// prepare the message and send
 	
 	}
 
 }
 
 uint32_t THSensor::calcSendSlot(void) {
-	uint32_t result = (((hm->ee.getHMID() << 8) | (hm->sn.msgCnt)) * 1103515245 + 12345) >> 16;
+	uint8_t a[4];
+	a[0] = HMID[2];
+	a[1] = HMID[1];
+	a[2] = HMID[0];
+	a[3] = 0;	
+	uint32_t result = ((( *(uint32_t*)&a << 8) | (hm.sn.msgCnt)) * 1103515245 + 12345) >> 16;
 	result = (result & 0xFF) + 480;
 	//dbg << "calcSendSlot: " << result << '\n'; 
 	return result;
@@ -98,7 +103,7 @@ void THSensor::pairStatusReq(void) {
 	dbg << F("PSR\n");
 	#endif
 	
-	hm->sendINFO_ACTUATOR_STATUS(regCnl, modStat, modDUL);
+	hm.sendINFO_ACTUATOR_STATUS(regCnl, modStat, modDUL);
 }
 void THSensor::peerMsgEvent(uint8_t type, uint8_t *data, uint8_t len) {
 	// we received a peer event, in type you will find the marker if it was a switch(3E), remote(40) or sensor(41) event
@@ -123,10 +128,18 @@ void THSensor::poll(void) {
 //-------------------------------------------------------------------------------------------------------------------------
 //- predefined, no reason to touch -
 //-------------------------------------------------------------------------------------------------------------------------
-void THSensor::regInHM(uint8_t cnl, uint8_t lst, AS *instPtr) {
-	hm = instPtr;																			// set pointer to the HM module
-	hm->rg.regInAS(cnl, lst, s_mod_dlgt(this,&THSensor::hmEventCol), (uint8_t*)&lstCnl,(uint8_t*)&lstPeer);
+void THSensor::regInHM(uint8_t cnl, uint8_t lst) {
+	RG::s_modTable *pModTbl = &modTbl[cnl];													// pointer to the respective line in the module table
+
+	pModTbl->isActive = 1;
+	pModTbl->mDlgt = myDelegate::from_function<CLASS_NAME, &CLASS_NAME::hmEventCol>(this);
+	pModTbl->lstCnl = (uint8_t*)&lstCnl;
+	pModTbl->lstPeer = (uint8_t*)&lstPeer;
+
+	hm.ee.getList(cnl, 1, 0, (uint8_t*)&lstCnl);											// load list1 in the respective buffer
 	regCnl = cnl;																			// stores the channel we are responsible fore
+	/*hm.rg.regUserModuleInAS(cnl, lst, myDelegate::from_function<THSensor, &THSensor::hmEventCol>(this), (uint8_t*)&lstCnl, (uint8_t*)&lstPeer);
+	regCnl = cnl;*/																			// stores the channel we are responsible fore
 }
 void THSensor::hmEventCol(uint8_t by3, uint8_t by10, uint8_t by11, uint8_t *data, uint8_t len) {
 	// dbg << "by3:" << by3 << " by10:" << by10 << " d:" << _HEX(data, len) << '\n'; _delay_ms(100);

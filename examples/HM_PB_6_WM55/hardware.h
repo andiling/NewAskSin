@@ -19,7 +19,6 @@
 		//- hardware specific general setup
 		#define PCINT_CALLBACK													// enables the pin change interrupt callback in user sketch
 
-
 		//- cc1100 hardware CS and GDO0 definitions -------------------------------------------------------------------
 		#define CC_CS                  PIN_B2									// chip select
 		#define CC_GDO0                PIN_D2									// GDO0 pin, identify data received on falling edge
@@ -29,8 +28,8 @@
 
 
 		//- LED's definition ------------------------------------------------------------------------------------------
-		#define LED_RED                PIN_D4									// define the red led pin port
-		#define LED_GRN                PIN_D6									// define the green led		
+		#define LED_RED                PIN_D6									// define the red led pin port
+		#define LED_GRN                PIN_D4									// define the green led		
 		#define LED_ACTIVE_LOW         0										// leds connected to GND = 0, VCC = 1
 
 

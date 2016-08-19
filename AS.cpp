@@ -26,15 +26,17 @@
 
 #ifdef SUPPORT_AES
 	#include "aes.h"
-
 	aes128_ctx_t ctx; 																			// the context where the round keys are stored
 #endif
 
 waitTimer cnfTmr;																				// config timer functionality
 waitTimer pairTmr;																				// pair timer functionality
 
-// public:		//---------------------------------------------------------------------------------------------------------
-AS::AS() {
+
+																								// public:		//---------------------------------------------------------------------------------------------------------
+AS::AS()  {
+//AS::AS() : rg(this) {
+	//RG(this);
 }
 
 /**
@@ -42,8 +44,8 @@ AS::AS() {
  */
 void AS::init(void) {
 	#ifdef AS_DBG																				// only if cc debug is set
-		dbgStart();																				// serial setup
-		dbg << F("AS.\n");																		// ...and some information
+	dbgStart();																					// serial setup
+	dbg << F("AS.\n");																			// ...and some information
 	#endif
 
 	initLeds();																					// initialize the leds
@@ -55,13 +57,6 @@ void AS::init(void) {
 	memcpy_P(HMID, HMSerialData+0, 3);															// set HMID from pgmspace
 	memcpy_P(HMSR, HMSerialData+3, 10);															// set HMSerial from pgmspace
 
-	sn.init(this);																				// send module
-	rv.init(this);																				// receive module
-	rg.init(this);																				// module registrar
-	confButton.init(this);																		// config button
-	pw.init(this);																				// power management
-	bt.init(this);																				// battery check
-	
 	initMillis();																				// start the millis counter
 
 	initRandomSeed();
@@ -137,9 +132,9 @@ void AS::sendDEVICE_INFO(void) {
 	sn.mBdy.mFlg.CFG = 1;
 	sn.mBdy.mFlg.BIDI = (isEmpty(MAID,3)) ? 0 : 1;
 
-	memcpy_P(sn.buf+10, devDef.devIdnt, 3);
+	memcpy_P(sn.buf+10, devIdnt, 3);
 	memcpy(sn.buf+13, HMSR, 10);
-	memcpy_P(sn.buf+23, devDef.devIdnt+3, 4);
+	memcpy_P(sn.buf+23, devIdnt+3, 4);
 
 	prepareToSend(msgCount, AS_MESSAGE_DEVINFO, MAID);
 
@@ -523,8 +518,9 @@ inline void AS::sendPeerMsg(void) {
 	
 	// first run, prepare amount of slots
 	if (!stcPeer.idx_max) {
-		stcPeer.idx_max = ee.getPeerSlots(stcPeer.channel);										// get amount of messages of peer channel
-	
+		stcPeer.idx_max = peerTbl[stcPeer.channel].pMax;										// get amount of messages of peer channel
+		//stcPeer.idx_max = ee.getPeerSlots(stcPeer.channel);									// get amount of messages of peer channel
+
 		if (stcPeer.idx_max == ee.countFreeSlots(stcPeer.channel) ) {							// check if at least one peer exist in db, otherwise send to master and stop function
 			preparePeerMessage(MAID, retries_max);
 			sn.msgCnt++;																		// increase the send message counter
@@ -908,7 +904,7 @@ uint8_t AS::getChannelFromPeerDB(uint8_t *pIdx) {
 	 */
 	uint8_t AS::checkAnyChannelForAES(void) {
 		uint8_t i;
-		for (i = 1; i <= devDef.cnlNbr; i++) {													// check if AES activated for any channel
+		for (i = 1; i <= cnl_max; i++) {														// check if AES activated for any channel
 			if (ee.getRegAddr(i, 1, 0, AS_REG_L1_AES_ACTIVE)) {
 				return 1;
 			}
@@ -1011,8 +1007,10 @@ uint8_t AS::getChannelFromPeerDB(uint8_t *pIdx) {
  */
 inline void AS::processMessageConfigStatusRequest(uint8_t by10) {
 	// check if a module is registered and send the information, otherwise report an empty status
-	if (modTbl[by10].cnl) {
-		modTbl[by10].mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.mBdy.pyLd, rv.mBdy.mLen-11);
+	RG::s_modTable *pModTbl = &modTbl[by10];													// pointer to the respective line in the module table
+
+	if (pModTbl->isActive) {
+			pModTbl->mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.mBdy.pyLd, rv.mBdy.mLen - 11);
 	} else {
 		sendINFO_ACTUATOR_STATUS(rv.mBdy.by10, 0, 0);
 	}
@@ -1117,7 +1115,7 @@ uint8_t AS::processMessageConfig() {
 	uint8_t ackOk = 1;
 
 	if (rv.mBdy.by11 == AS_CONFIG_PEER_ADD) {													// CONFIG_PEER_ADD
-		ackOk = configPeerAdd(rv.mBdy.by10 -1);
+		ackOk = configPeerAdd();
 
 	} else if (rv.mBdy.by11 == AS_CONFIG_PEER_REMOVE) {											// CONFIG_PEER_REMOVE
 		ackOk = configPeerRemove();
@@ -1137,22 +1135,24 @@ uint8_t AS::processMessageConfig() {
 }
 
 /**
- * @brief Process CONFIG_PEER_REMOVE messages
+ * @brief Process CONFIG_PEER_ADD messages
+ *        by10 is the channel were the peer has to be added, 
+ *        but reworked with -1 to reflect the logix of the module table
  *
  * Message description:
  *             Sender__ Receiver Byte10    Channel Peer-ID_ PeerChannelA  PeerChannelB
  * 0C 0A A4 01 23 70 EC 1E 7A AD 01        01      1F A6 5C 06            05
  */
-inline uint8_t AS::configPeerAdd(uint8_t by10) {
-	ee.remPeer(rv.mBdy.by10, rv.buf+12);														// first call remPeer to avoid doubles
-	uint8_t ackOk = ee.addPeer(rv.mBdy.by10, rv.buf+12);										// send to addPeer function
+inline uint8_t AS::configPeerAdd() {
 
-	// let module registrations know of the change
-	if ((ackOk) && (modTbl[by10].cnl)) {
-		modTbl[by10].mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.buf+15, 4);
-	}
+	// set the peers in the peerdatabase
+	uint8_t ackOk = ee.addPeers(rv.mBdy.by10, rv.buf+12);										// send to addPeer function
 
-	return ackOk;
+	#ifdef AS_DBG																				// only if ee debug is set
+	dbg << F("configPeerAdd, cnl:") << _HEXB(rv.buf[11]) << F(", data:") << _HEX(rv.buf + 12, 5) << '\n';
+	#endif
+
+	return ackOk;																				// return the status
 }
 
 /**
@@ -1163,7 +1163,7 @@ inline uint8_t AS::configPeerAdd(uint8_t by10) {
  * 0C 0A A4 01 23 70 EC 1E 7A AD 02 01      1F A6 5C 06            05
  */
 inline uint8_t AS::configPeerRemove() {
-	return ee.remPeer(rv.mBdy.by10,rv.buf+12);													// call the remPeer function
+	return ee.remPeers(rv.mBdy.by10,rv.buf+12);													// call the remPeer function
 }
 
 /**
@@ -1197,23 +1197,23 @@ inline void AS::configStart() {
  * 10 04 A0 01 63 19 63 01 02 04 01 06
  */
 inline void AS::configEnd() {
-	uint8_t cnl1 = cFlag.channel - 1;
+	RG::s_modTable *pModTbl = &modTbl[cFlag.channel];											// pointer to the respective line in the module table
 
 	cFlag.active = 0;																			// set inactive
-	if ((cFlag.channel == 0) && (cFlag.idx_peer == 0)) {
+	if ( (cFlag.channel == 0) && (cFlag.idx_peer == 0) ) {
 		ee.getMasterID();
 	}
 	// remove message id flag to config in send module
 
-	if ((cFlag.channel > 0) && (modTbl[cnl1].cnl)) {
+	if ( (cFlag.channel > 0) && ( pModTbl->isActive) ) {
 		/*
 		 * Check if a new list1 was written and reload.
 		 * No need for reload list3/4 because they will be loaded on an peer event.
 		 */
 		if (cFlag.list == 1) {
-			ee.getList(cFlag.channel, 1, cFlag.idx_peer, modTbl[cnl1].lstCnl); 					// load list1 in the respective buffer
+			ee.getList(cFlag.channel, 1, cFlag.idx_peer, pModTbl->lstCnl); 						// load list1 in the respective buffer
 		}
-		modTbl[cnl1].mDlgt(0x01, 0, 0x06, NULL, 0);												// inform the module of the change
+		pModTbl->mDlgt(0x01, 0, 0x06, NULL, 0);													// inform the module of the change
 	}
 }
 
@@ -1276,24 +1276,35 @@ void AS::processMessageAction11() {
 		 *             Sender__ Receiver type actionType channel data
 		 * 0E 5E B0 11 63 19 63 1F B7 4A 02   01         01      C8 00 00 00 00
 		 */
-		if (modTbl[rv.mBdy.by11-1].cnl) {
-			modTbl[rv.mBdy.by11-1].mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.buf+12, rv.mBdy.mLen-11);
+		RG::s_modTable *pModTbl = &modTbl[rv.mBdy.by11];										// pointer to the respective line in the module table
+		if (pModTbl->isActive) {
+			pModTbl->mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.buf+12, rv.mBdy.mLen-11);
 		}
 	}
 }
 
 /**
  * @brief Process all action (3E, 3F, 40, 41, ...) messages
+ * 
+ * Within the function we load the respective list3/4 into the
+ * list pointer in module table registered. Identification of the list
+ * is done by a lookup in the peertable and following the plink into the 
+ * the respective line in the channel table.
+ *
  */
 void AS::processMessageAction3E(uint8_t cnl, uint8_t pIdx) {
 	// check if a module is registered and send the information, otherwise report an empty status
-	if (modTbl[cnl-1].cnl) {
+	RG::s_modTable *pModTbl = &modTbl[cnl];													// pointer to the respective line in the module table
+	EE::s_peerTbl *pPeerTbl = (EE::s_peerTbl*)&peerTbl[ cnl ];
+	EE::s_cnlTbl *pCnlTbl = (EE::s_cnlTbl*)&cnlTbl[ pPeerTbl->pLink ];
+
+	if (pModTbl->isActive) {
 
 		//dbg << "pIdx:" << pIdx << ", cnl:" << cnl << '\n';
-		ee.getList(cnl, modTbl[cnl-1].lst, pIdx, modTbl[cnl-1].lstPeer);						// get list3 or list4 loaded into the user module
+		ee.getList( pCnlTbl->cnl, pCnlTbl->lst, pIdx, pModTbl->lstPeer);						// get list3 or list4 loaded into the user module
 
 		// call the user module
-		modTbl[cnl-1].mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.buf+10, rv.mBdy.mLen-9);
+		pModTbl->mDlgt(rv.mBdy.mTyp, rv.mBdy.by10, rv.mBdy.by11, rv.buf + 10, rv.mBdy.mLen - 9);
 
 	} else {
 		sendACK();
@@ -1308,12 +1319,11 @@ void AS::processMessageAction3E(uint8_t cnl, uint8_t pIdx) {
  */
 void AS::deviceReset(uint8_t clearEeprom) {
 	if (clearEeprom == AS_RESET_CLEAR_EEPROM) {
-		ee.clearPeers();
-		ee.clearRegs();
+		firstTimeStart();
 		ee.getMasterID();
 
 		#ifdef SUPPORT_AES
-			ee.initHMKEY();
+		ee.initHMKEY();
 		#endif
 	}
 
@@ -1698,6 +1708,9 @@ inline void AS::initRandomSeed() {
 
 	initPseudoRandomNumberGenerator();
 }
+
+
+
 
 /**
  * @brief Query if the timer has expired

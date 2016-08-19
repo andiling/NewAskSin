@@ -23,7 +23,6 @@
 
 	#include "macros.h"
 	#include "Print.h"
-
 	
 	//- MCU dependent HAL definitions -----------------------------------------------------------------------------------------
 	#if defined(__AVR_ATmega328P__)
@@ -90,7 +89,8 @@
 	enum _eTIME { _TIME };
 	inline Print &operator <<(Print &obj, _eTIME arg) { obj.print('('); obj.print(getMillis()); obj.print(')'); return obj; }
 
-	extern void    dbgStart(void);
+	//extern void    dbgStart(void);
+	void    dbgStart(void);
 	//- -----------------------------------------------------------------------------------------------------------------------
 
 
@@ -107,6 +107,14 @@
 	//- -----------------------------------------------------------------------------------------------------------------------
 
 	//- led related functions -------------------------------------------------------------------------------------------------
+	struct s_blPat {							// struct for defining the blink pattern
+		uint8_t len;							// length of pattern string
+		uint8_t dur;							// how often the pattern has to be repeated, 0 for endless
+		uint8_t led0;							// red
+		uint8_t led1;							// green, if you like orange, set led0 and led1 to one
+		uint8_t pat[6];							// the pattern it self, pattern starts always with the on time, followed by off time.
+	};											// time is given in 10ms steps
+	extern const struct s_blPat blPat[];
 	extern void    initLeds(void);																// initialize leds
 	extern void    ledRed(uint8_t stat);														// function in main sketch to drive leds
 	extern void    ledGrn(uint8_t stat);														// stat could be 0 for off, 1 for on, 2 for toggle
@@ -149,10 +157,10 @@
 
 
 	//- eeprom functions ------------------------------------------------------------------------------------------------------
-	extern void    initEEProm(void);
-	extern void    getEEPromBlock(uint16_t addr,uint8_t len,void *ptr);
-	extern void    setEEPromBlock(uint16_t addr,uint8_t len,void *ptr);
-	extern void    clearEEPromBlock(uint16_t addr, uint16_t len);
+	void    initEEProm(void);
+	void    getEEPromBlock(uint16_t addr,uint8_t len,void *ptr);
+	void    setEEPromBlock(uint16_t addr,uint8_t len,void *ptr);
+	void    clearEEPromBlock(uint16_t addr, uint16_t len);
 	//- -----------------------------------------------------------------------------------------------------------------------
 
 

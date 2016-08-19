@@ -1,8 +1,9 @@
-#define SER_DBG																				// serial debug messages
+#define SER_DBG
 
 //- load library's --------------------------------------------------------------------------------------------------------
 #include "register.h"																		// configuration sheet
 #include <AS.h>																				// ask sin framework
+
 
 
 //- arduino functions -----------------------------------------------------------------------------------------------------
@@ -48,7 +49,11 @@ void setup() {
 	#ifdef SER_DBG
 		dbg << F("HMID: ") << _HEX(HMID,3) << F(", MAID: ") << _HEX(MAID,3) << F("\n\n");	// some debug
 	#endif
+
 }
+
+
+
 
 void loop() {
 	// - AskSin related ---------------------------------------
@@ -58,6 +63,9 @@ void loop() {
 	
 }
 
+void initRemote(uint8_t channel) {
+
+}
 
 //- user functions --------------------------------------------------------------------------------------------------------
 /**
@@ -69,7 +77,7 @@ void loop() {
 * @param   flag    Indicates the value of the port pin (1 = high, 0 = low)
 */
 void pci_callback(uint8_t vec, uint8_t pin, uint8_t flag) {
-	dbg << "cb, vec:" << vec << ", pin:" << pin << ", flag:" << flag << '\n';
+	//dbg << "cb, vec:" << vec << ", pin:" << pin << ", flag:" << flag << '\n';
 }
 
 
